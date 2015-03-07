@@ -26,6 +26,19 @@ diskont = diskont'.  mt_rand(0, 2).';
 $bd=  parse_ini_string($ini_string, true);
 //print_r($bd);
 
+//Список специальных скидок
+$action ['name'][] = 'игрушка детская велосипед';
+$action ['amount'][] = 3;
+$action ['diskont'][] = 30;
+
+$action ['name'][] = 'игрушка мягкая мишка белый';
+$action ['amount'][] = 6;
+$action ['diskont'][] = 50;
+
+//echo var_dump($action);
+
+
+
 //1. Надо разобрать корзину в отдельный массив.
 
 $names = array_keys($bd);
@@ -49,15 +62,17 @@ function correctAmmount($name,$bd){
 }
 
 //3.Функции вычисления скидок (2 вида).
-
+$arr_saleSpecial = array();                     // массив для памяти специальных скидок
 
 function saleDefault($name,$bd) {
     return substr($bd[$name]['diskont'], 7, 1) / 10;
 }
 
-function saleSpecial($name, $bd) {              //возвращает скидку на велосипед
-    if (correctAmmount($name, $bd) >= 3){
-        return 0.3;
+function saleSpecial($name, $bd, $amount, $diskont) {              //возвращает скидку на велосипед
+    global $arr_saleSpecial;
+    if (correctAmmount($name, $bd) >= $amount){
+        $arr_saleSpecial[$name] = $diskont;
+        return $diskont/100;
     } else {
         return saleDefault ($name, $bd);
     }
@@ -72,15 +87,18 @@ for ($i = 0; $i < count($names); $i++) {
         $basket['Цена за ед.'][$i] = $bd[$names[$i]]['цена'];
         $basket['Кол-во'][$i] = $bd[$names[$i]]['количество заказано'];
         $basket['Наличие на складе'][$i] = correctAmmount($names[$i], $bd); 
-        if ($names[$i] == 'игрушка детская велосипед'){
-            $basket['Скидка на товар'][$i] = saleSpecial($names[$i],$bd)*100 . '%';
+        
+        // для специальных скидок
+        if (in_array($names[$i], $action['name'])){
+            $j = array_search($names[$i], $action['name']);
+            $basket['Скидка на товар'][$i] = saleSpecial($names[$i],$bd,$action['amount'][$j],$action['diskont'][$j])*100 . '%';
         }else{
             $basket['Скидка на товар'][$i] = saleDefault($names[$i], $bd)*100 . '%';
         }
+        
         $basket['Цена со скидкой'][$i] = $basket['Цена за ед.'][$i]*((100-$basket['Скидка на товар'][$i])/100);
         $basket['Стоимость с учетом наличия'][$i] = $basket['Наличие на складе'][$i]*$basket['Цена за ед.'][$i];
         $basket['Стоимость со скидкой'][$i] =  $basket['Стоимость с учетом наличия'][$i]*(100 - $basket['Скидка на товар'][$i])/100;
-        
     }
 }
 //print_r($basket);
@@ -100,7 +118,7 @@ $summery['Ваша скидка'] = $summery['Сумма заказа'] - array_
 // ВЫВОД
 echo "<h2>КОРЗИНА</h2>";
 
-if ($basket !== NULL) {
+if ($basket) {
     // Вывод корзины
     echo "<table width = 100%>";
     echo "<tr>";
@@ -116,14 +134,16 @@ if ($basket !== NULL) {
         echo "</tr>";
     }
     echo "</table>";
+    //echo var_dump($deficiency);
       
     // Вывод Уведомления
-    if (array_sum($deficiency) !== null) {
+    if (array_sum($deficiency)) {
+        
         echo "<h3>Уведомления:</h3>";
         echo "<br>В данный момент на складе отсутствует необходимое количество следующего товара: ";
         foreach ($deficiency as $key => $value) {
-            if ($value !== 0) {
-                echo "|".$key."|".' ';
+            if ($value) {
+                echo "'".$key."'".' ';
             }
         }
         echo '.';
@@ -131,9 +151,12 @@ if ($basket !== NULL) {
     }
     
    // Вывод Скидки
-    if (correctAmmount('игрушка детская велосипед', $bd) >= 3) {
+   if ($arr_saleSpecial) {
         echo "<h3>Скидки:</h3>";
-        echo "<br>За покупку 'игрушка детская велосипед' в количестве трех либо более штук Вы получаете скидку 30% на этот товар!";
+        foreach ($arr_saleSpecial as $name => $diskont) {
+            echo "<br>За покупку '$name' в количестве ".$action['amount'][array_search($name, $action['name'])].
+                    " либо более штук Вы получаете скидку $diskont% на этот товар!";
+        }
     }
 
     //Вывод ИТОГО
